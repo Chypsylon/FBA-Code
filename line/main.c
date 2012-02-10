@@ -36,7 +36,7 @@ int main(void)
 	init_adc(); //Set up ADC
 	init_twi_slave(SLAVE_ADRESSE);	//I2C-Slave
 
-	set_line_led(LINE_LED_ALL,ON);
+	set_line_led(LINE_LED_ALL,OFF);
 
 	for(uint8_t i=0;i<buffer_size;i++)
 	{
@@ -53,7 +53,18 @@ int main(void)
 
 	sei();  //activate global interrupts
 
-	//TODO: read calibration min max from eeprom
+	//read calibration min max from eeprom (TODO: add some sanity check whether values are really saved and haven't been erased/corrupted )
+
+	for(uint8_t i=0;i<NUM_SENSORS;i++)
+	{
+		light_sensors[i].cal_min = eeprom_read_word ((uint16_t *) (2*i ));
+	}
+
+	for(uint8_t i=0;i<NUM_SENSORS;i++)
+	{
+		light_sensors[i].cal_max = eeprom_read_word ((uint16_t *) ( 16 + 2*i));
+	}
+
 
 	while(1)
 	{
@@ -63,22 +74,45 @@ int main(void)
 			for(uint8_t i=0;i<NUM_SENSORS;i++)  //get max. and min. values for each sensor
 			{
 				set_line_mux_channel(i);
-				_delay_ms(10);  //allow multiplexer enough time to switch channel, can probably be reduced/omitted
+				//_delay_ms(10);  //allow multiplexer enough time to change channel, can probably be reduced/omitted
+
+				/*switch on respective leds*/
+				if((i==0)||(i==4))
+					set_line_led(LINE_LED_15,ON);
+
+				if((i==1)||(i==5))
+					set_line_led(LINE_LED_26,ON);
+
+				if((i==2)||(i==6))
+					set_line_led(LINE_LED_37,ON);
+
+				if((i==3)||(i==7))
+					set_line_led(LINE_LED_48,ON);
 
 				//look for max. and min. value and store
 				light_value = read_adc_avg(0,10);
 
-				if(light_value>light_sensors[i].cal_max)
+				if(light_value > light_sensors[i].cal_max)
 					light_sensors[i].cal_max = light_value;
 
-				if(light_value<light_sensors[i].cal_min)
+				if(light_value < light_sensors[i].cal_min)
 					light_sensors[i].cal_min = light_value;
+
+				set_line_led(LINE_LED_ALL,OFF);
 			}
 		}
 
 		if(rxbuffer[LINE_SENSOR_CALIBRATION_COMMAND]==2)  //save calibration values to eeprom
 		{
-			//TODO
+			for(uint8_t i=0;i<NUM_SENSORS;i++)
+			{
+				eeprom_write_word ((uint16_t *) (2*i ), light_sensors[i].cal_min);
+			}
+
+			for(uint8_t i=0;i<NUM_SENSORS;i++)
+			{
+				eeprom_write_word ((uint16_t *) ( 16 + 2*i), light_sensors[i].cal_max);
+			}
 			rxbuffer[LINE_SENSOR_CALIBRATION_COMMAND]=0;
 		}
 
@@ -175,9 +209,10 @@ int main(void)
 
 					light_value = read_adc_avg(0,10);
 
-					int16_t temp;
+					uint16_t temp;
 
-					temp = ((light_value - light_sensors[i].cal_min) * 1023 )/ ( light_sensors[i].cal_max - light_sensors[i].cal_min );  //normalize line values
+					temp = ((light_value - light_sensors[i].cal_min) * 1000 )/ ( light_sensors[i].cal_max - light_sensors[i].cal_min );  //normalize line values
+					//TODO: Values always stay low WTF?
 
 					if(temp<0)  //prevent underflow
 						temp=0;

@@ -12,6 +12,8 @@ struct {
    unsigned led_state:1;
    volatile unsigned us_state:1; 
    unsigned start:1;
+   unsigned calibration:1;
+   unsigned cal_values:1;
 } flags;
 
 //Encoder

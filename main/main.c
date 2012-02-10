@@ -121,6 +121,7 @@ int main(void)
   uint16_t biggest=0;
   uint8_t line_position = 0;
   
+  flags.calibration = 0;
 
   io_init();
   
@@ -165,9 +166,8 @@ int main(void)
   sei();
   
   
-  send_line_mode(12);  //start sampling  
+  send_line_mode(10);  //start sampling
   
-  motor1_speed = -1000;
   
   while(1)
   {
@@ -224,17 +224,46 @@ int main(void)
 		
 	  case BUTTON_1:
 		//flags.start = NOT_READY;
-		uart_puts_P(" :) \r\n");
-		send_calibration_mode(3);
+		  if(flags.cal_values == 0)
+		  {
+			  uart_puts_P(" Stop sampling\r\n");
+			  send_line_mode(0);
+			  uart_puts_P(" MIN prepared for transmission");
+			  send_calibration_mode(3);
+			  flags.cal_values = 1;
+		  }
+		  else
+		  {
+			  uart_puts_P(" Stop sampling\r\n");
+			  send_line_mode(0);
+			  uart_puts_P(" MAX prepared for transmission");
+			  send_calibration_mode(4);
+			  flags.cal_values = 0;
+		  }
+
+
 		break;
 		
 	  case BUTTON_1 + TASTER_LONG:
+	  	uart_puts_P("Transmitting normalized values");
+	  	send_line_mode(12);
 		break;	
 		
 	  case BUTTON_2:
 		//flags.start = READY;
-		uart_puts_P(" STARTED Calibration\r\n");
-		send_calibration_mode(1);
+		if(flags.calibration==0)
+		{
+			uart_puts_P(" STARTED Calibration\r\n");
+			send_calibration_mode(1);
+			flags.calibration = 1;
+		}
+		else
+		{
+			uart_puts_P(" SAVE and STOP CALIBRATION \r\n");
+			send_calibration_mode(2);
+			flags.calibration = 0;
+		}
+
 		break;
 		
 	  case BUTTON_2 + TASTER_LONG:
@@ -259,46 +288,14 @@ int main(void)
 	if (tast != NO_TASTER)
 	  taster = NO_TASTER;
 	  
-	
-	
-	
-	
-	
-	if(flags.start == NOT_READY)
-	{
-	  motor1_speed = 0; 
-	  motor2_speed = 0;
-	}
-	else
-	{
-	  //line lefthand
-	  if(line_position < 4)
-	  {
-	    //turn right
-		motor1_speed = -800; 
-	    motor2_speed = -600;
-	  }
 	  
-	  //line righthand
-	  if(line_position > 5)
-	  {
-	    //turn left
-		motor1_speed = -600; 
-	    motor2_speed = -800;
-	  }
-	  
-	  //line lefthand
-	  if((line_position == 4)&&(line_position == 5))
-	  {
-	    //turn right
-		motor1_speed = -800; 
-	    motor2_speed = -800;
-	  }
-	}
-	  
-	  
-	 send_motor1_speed(motor1_speed);
-	 send_motor2_speed(motor2_speed); 
+
+
+	motor1_speed = 0;
+	motor2_speed = 0;
+
+	send_motor1_speed(motor1_speed);
+	send_motor2_speed(motor2_speed);
 	 
    }//while.end
   
