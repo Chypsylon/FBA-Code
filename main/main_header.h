@@ -6,22 +6,9 @@ FILE: main_header.h
 DATE: 2.11.2011
 ***********************/
 
-/*Global Variables*/
-//Flags
-struct {
-   unsigned led_state:1;
-   volatile unsigned us_state:1; 
-   unsigned start:1;
-   unsigned calibration:1;
-   unsigned cal_values:1;
-} flags;
-
-//Encoder
-volatile int8_t enc_delta;          // -128 ... 127
-static int8_t last;
-
-
 /* DEFINES */
+#define NUM_SENSORS 		8
+
 #define UART_BAUD_RATE      9600
 //i2c adresses
 #define MOTOR_SLAVE_ADRESSE 0x50
@@ -62,6 +49,23 @@ static int8_t last;
 #define uniq(LOW,HEIGHT)	((HEIGHT << 8)|LOW)			// 2x 8Bit 	--> 16Bit
 #define LOW_BYTE(x)        	(x & 0xff)					// 16Bit 	--> 8Bit
 #define HIGH_BYTE(x)       	((x >> 8) & 0xff)			// 16Bit 	--> 8Bit
+
+
+
+/*Global Variables*/
+//Flags
+struct {
+   unsigned led_state:1;
+   volatile unsigned us_state:1;
+   unsigned start:1;
+   unsigned calibration:1;
+   unsigned cal_values:1;
+} flags;
+
+//Encoder
+volatile int8_t enc_delta;          // -128 ... 127
+static int8_t last;
+
 
 
 

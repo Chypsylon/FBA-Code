@@ -16,6 +16,7 @@
 #include "main_taster.h"
 #include "main_uart.h" 
 #include "i2cmaster.h"  
+#include "main_lcd.h"
 
 #include "main_header.h"
 #include "main_lib.h"
@@ -29,6 +30,9 @@ int16_t motor2_speed = 0;
 
 volatile uint16_t timestamp_last=0;
 volatile uint16_t runtime=0;
+
+//line estimation
+int8_t sensor_position[NUM_SENSORS] = {-32, -15, -9, -3, 3, 9, 15, 32 };
 
 
 
@@ -115,16 +119,22 @@ int main(void)
 
   int16_t encoder_rotation = 0;
   int16_t encoder_rotation_old = 0;
-  uint8_t state=0;
   
+  int8_t line_position = 0;
+  int32_t wa_numerator = 0;
+  uint16_t wa_denominator = 0;
+
   uint16_t line_values[8];
-  uint16_t biggest=0;
-  uint8_t line_position = 0;
   
   flags.calibration = 0;
 
   io_init();
   
+
+  lcd_init(LCD_DISP_ON_CURSOR);
+
+  lcd_bl(1);
+
   
   /*TIMER CONFIG*/
   
@@ -184,20 +194,6 @@ int main(void)
 	//encoder.end
 	
 	
-	/*search for highest line value*/
-	biggest = 0;
-	line_position = 0;
-	
-	for(uint8_t i=0;i<8;i++)
-	{
-	  line_values[i] = read_line_sensor(i+1);
-	  if(line_values[i] > biggest)
-	  {
-	    biggest = line_values[i];
-	    line_position = i+1;
-	  }
-	}//highest value.end
-	
 	//check whether new us time is available for calculation
 	if(flags.us_state == READY)
 	{
@@ -209,6 +205,24 @@ int main(void)
 	}
 	
 	
+	//estimate line position
+	/* value0 * position0 + value1 * position1 + value2 * position2 ...
+	 * ----------------------------------------------------------------
+	 * value0 + value1 + value2 ...
+	 */
+	for(uint8_t i=0; i<NUM_SENSORS; i++)
+	{
+		//wa_numerator   += (long)(line_values[i] * sensor_position[i]);
+		wa_numerator   += (long)line_values[i] * (i * 1000);
+		wa_denominator +=  line_values[i];
+	}
+
+	line_position = wa_numerator / wa_denominator;
+
+
+
+
+
 	
 	
 	
@@ -270,7 +284,7 @@ int main(void)
 		break;
 		
 	  case BUTTON_ENCODER:
-	    for(uint8_t i=0;i<8;i++)
+	    /*for(uint8_t i=0;i<NUM_SENSORS;i++)
 		{
 		  uart_puts_P("Sensor ");
 		  uart_put_uint(i);
@@ -278,7 +292,16 @@ int main(void)
 	      uart_put_16bit(line_values[i]);
 	      uart_puts_P(" \r\n");
 		}
-		uart_puts_P("-------------------------\r\n\r\n");
+		uart_puts_P("-------------------------\r\n\r\n");*/
+		uart_puts_P("Displacement: ");
+		uart_put_int(line_position);
+		uart_puts_P(" \r\n");
+		uart_puts_P("wa_numerator: ");
+		uart_put_16bit(wa_numerator);
+		uart_puts_P(" \r\n");
+		uart_puts_P("wa_denominator: ");
+		uart_put_u16bit(wa_denominator);
+		uart_puts_P(" \r\n");
 		break;
 		
 	  case BUTTON_ENCODER + TASTER_LONG:		
