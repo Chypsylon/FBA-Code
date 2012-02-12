@@ -62,6 +62,9 @@ struct {
    unsigned cal_values:1;
 } flags;
 
+
+
+
 //Encoder
 volatile int8_t enc_delta;          // -128 ... 127
 static int8_t last;
