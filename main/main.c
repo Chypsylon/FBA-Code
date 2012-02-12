@@ -209,7 +209,8 @@ int main(void)
 	  flags.us_state = NOT_READY;
 	}
 	
-	
+	//Read line sensors values from slave
+	//binary line detection
 	for(uint8_t i=0;i<NUM_SENSORS;i++)
 	{
 		line_values[i] = read_line_sensor(i+1);
@@ -255,19 +256,27 @@ int main(void)
 //			          line_values[7]);*/
 
 
-
+	//Display line values
+	lcd_home();
+	lcd_puts_P("Line");
 	lcd_gotoxy(0,1);
-	lcd_puts_P("          ");
+	lcd_puts_P("                ");
 	lcd_gotoxy(0,1);
-
-	char buffer[20];
-
-	lcd_puts(itoa(line_position, buffer, 2));
-
-
-	//_delay_ms(100);
+	for(uint8_t i=0;i<NUM_SENSORS;i++)
+	{
+		if(line_position & (1<<(7-i)))  {
+			lcd_putc('1');
+		}
+		else  {
+			lcd_putc('0');
+		}
+	}
 	
-	
+	/*//would work but no leading zeros
+	 * char buffer[20];
+	 * lcd_puts(itoa(line_position, buffer, 2));*/
+
+
 	
 	
 	
