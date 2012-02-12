@@ -9,6 +9,9 @@ DATE: 2.11.2011
 /* DEFINES */
 #define NUM_SENSORS 		8
 
+//line detection
+#define LINE_TRESHOLD 150
+
 #define UART_BAUD_RATE      9600
 //i2c adresses
 #define MOTOR_SLAVE_ADRESSE 0x50

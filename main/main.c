@@ -120,9 +120,9 @@ int main(void)
   int16_t encoder_rotation = 0;
   int16_t encoder_rotation_old = 0;
   
-  int8_t line_position = 0;
-  int32_t wa_numerator = 0;
-  uint16_t wa_denominator = 0;
+  uint8_t line_position = 0;
+  /*int32_t wa_numerator = 0;
+  uint16_t wa_denominator = 0;*/
 
   uint16_t line_values[8];
   
@@ -210,10 +210,20 @@ int main(void)
 	}
 	
 	
-	for(uint8_t i=0;i<8;i++)
+	for(uint8_t i=0;i<NUM_SENSORS;i++)
+	{
 		line_values[i] = read_line_sensor(i+1);
+		if(line_values[i]>LINE_TRESHOLD)  {
+			line_position |= (1<<(7-i));
+		}
+		else  {
+			line_position &= ~(1<<(7-i));
+		}
+	}
 
-//	//estimate line position
+
+
+	//estimate line position
 //	/* value0 * position0 + value1 * position1 + value2 * position2 ...
 //	 * ----------------------------------------------------------------
 //	 * value0 + value1 + value2 ...
@@ -252,10 +262,10 @@ int main(void)
 
 	char buffer[20];
 
-	lcd_puts(itoa(line_position, buffer, 10));
+	lcd_puts(itoa(line_position, buffer, 2));
 
 
-	_delay_ms(100);
+	//_delay_ms(100);
 	
 	
 	
