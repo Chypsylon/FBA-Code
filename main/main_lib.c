@@ -272,6 +272,14 @@ void uart_put_u16bit( uint16_t value )
     unsigned char digit;
     
     digit = '0';
+
+    while( value >= 10000 )                // Still larger than 1000 ?
+        {
+            digit++;                         // Increment first digit
+            value -= 10000;
+        }
+    	uart_putc( digit );
+
     while( value >= 1000 )                // Still larger than 100 ?
     {
         digit++;                         // Increment first digit

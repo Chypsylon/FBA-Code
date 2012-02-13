@@ -31,8 +31,6 @@ int16_t motor2_speed = 0;
 volatile uint16_t timestamp_last=0;
 volatile uint16_t runtime=0;
 
-//line estimation
-//int8_t sensor_position[NUM_SENSORS] = {-32, -15, -9, -3, 3, 9, 15, 32 };
 
 
 
@@ -121,8 +119,9 @@ int main(void)
   int16_t encoder_rotation_old = 0;
   
   uint8_t line_position = 0;
-  /*int32_t wa_numerator = 0;
-  uint16_t wa_denominator = 0;*/
+  uint16_t line_estimate = 0;
+  uint32_t wa_numerator = 0;
+  uint16_t wa_denominator = 0;
 
   uint16_t line_values[8];
   
@@ -137,8 +136,6 @@ int main(void)
   lcd_init(LCD_DISP_ON);
 
   lcd_bl(1);
-
-  lcd_puts_P("Test");
 
   
   /*TIMER CONFIG*/
@@ -214,54 +211,46 @@ int main(void)
 	for(uint8_t i=0;i<NUM_SENSORS;i++)
 	{
 		line_values[i] = read_line_sensor(i+1);
-		if(line_values[i]>LINE_TRESHOLD)  {
+
+		if(line_values[i]>LINE_TRESHOLD)
+		{
 			line_position |= (1<<(7-i));
+
+			//values for line estimation via weighted mean
+			//only values above threshold (e.g. black) are considered in calculation
+			wa_numerator += (long)(line_values[i]) *((i+1) *100);
+			wa_denominator += line_values[i];
 		}
 		else  {
 			line_position &= ~(1<<(7-i));
 		}
 	}
 
+	if(line_position==0)  {
+		line_estimate = 0;
+	}
+	else  {
+		line_estimate = wa_numerator/wa_denominator;
+	}
 
-
-	//estimate line position
-//	/* value0 * position0 + value1 * position1 + value2 * position2 ...
-//	 * ----------------------------------------------------------------
-//	 * value0 + value1 + value2 ...
-//	 */
-//	for(uint8_t i=0; i<NUM_SENSORS; i++)
-//	{
-//		//wa_numerator   += (long)(line_values[i] * sensor_position[i]);
-//		wa_numerator   += (long)line_values[i] * (i * 1000);
-//		wa_denominator +=  line_values[i];
-//	}
-//
-//	line_position = wa_numerator / wa_denominator;
-//
-//	/*line_position = (line_values[0] * sensor_position[0] +
-//			         line_values[1] * sensor_position[1] +
-//			         line_values[2] * sensor_position[2] +
-//			         line_values[3] * sensor_position[3] +
-//			         line_values[4] * sensor_position[4] +
-//			         line_values[5] * sensor_position[5] +
-//			         line_values[6] * sensor_position[6] +
-//			         line_values[7] * sensor_position[7])/
-//			         (line_values[0] +
-//			          line_values[1] +
-//			          line_values[2] +
-//			          line_values[3] +
-//			          line_values[4] +
-//			          line_values[5] +
-//			          line_values[6] +
-//			          line_values[7]);*/
-
+	wa_numerator = 0;
+	wa_denominator = 0;
 
 	//Display line values
 	lcd_home();
-	lcd_puts_P("Line");
+	lcd_puts_P("                ");
+	lcd_home();
+	char buffer[20];
+	lcd_puts(itoa(line_estimate, buffer, 10));
+
+	uart_put_u16bit(line_estimate);
+	uart_puts_P(" \r\n");
+
+
 	lcd_gotoxy(0,1);
 	lcd_puts_P("                ");
 	lcd_gotoxy(0,1);
+
 	for(uint8_t i=0;i<NUM_SENSORS;i++)
 	{
 		if(line_position & (1<<(7-i)))  {
@@ -271,14 +260,6 @@ int main(void)
 			lcd_putc('0');
 		}
 	}
-	
-	/*//would work but no leading zeros
-	 * char buffer[20];
-	 * lcd_puts(itoa(line_position, buffer, 2));*/
-
-
-	
-	
 	
 	signed char tast = taster;
 	
