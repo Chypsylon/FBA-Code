@@ -7,6 +7,7 @@
 #include <util/delay.h>
 
 #include "main_uart.h"
+#include "main_lcd.h"
 #include "i2cmaster.h"
 #include "main_header.h"
 
@@ -345,6 +346,35 @@ void uart_put_16bit( int16_t value )
     uart_putc( digit );                  // Send second digit
     
     uart_putc( '0' + value );            // Send third digit
+}
+
+/*LCD*/
+
+void lcd_put_int8(int8_t var)
+{
+  char buffer[20];
+  itoa(var, buffer, 10);
+  lcd_puts(buffer);
+}
+
+void lcd_put_uint8(uint8_t var)
+{
+  char buffer[20];
+  utoa(var, buffer, 10);
+  lcd_puts(buffer);
+}
+
+void lcd_put_int16(int16_t var)
+{
+  char buffer[20];
+  itoa(var, buffer, 10);
+  lcd_puts(buffer);
+}
+void lcd_put_uint16(uint16_t var)
+{
+  char buffer[30];
+  utoa(var, buffer, 10);
+  lcd_puts(buffer);
 }
 
 

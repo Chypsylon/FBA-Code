@@ -125,7 +125,19 @@ int main(void)
 
   uint16_t line_values[8];
   
-  flags.calibration = 0;
+  //PID stuff
+  //int16_t proportional = 0;
+  int16_t last_proportional = 0;
+  int16_t integral = 0;
+  //int16_t derivative = 0;
+  int16_t error_value = 0;
+  uint16_t Kp = 0;
+  uint16_t Kd = 0;
+  uint16_t Ki = 0;
+
+  //Menu
+  uint16_t menu=0;
+
 
   for(uint8_t i=0;i<8;i++)
   		line_values[i] = 0;
@@ -185,12 +197,27 @@ int main(void)
   {
 	
 	/*read encoder and display if changed*/
+	encoder_rotation = 0;
 	encoder_rotation += encode_read4() ;
-	if(encoder_rotation != encoder_rotation_old)
+	if(encoder_rotation != encoder_rotation_old)  //has changed since last time
 	{
-	  uart_puts_P("Encoder: ");
-	  uart_put_16bit(encoder_rotation);
-	  uart_puts_P(" \r\n");
+		switch (menu) {
+			case 2:
+				Kp += encoder_rotation;
+				break;
+			case 3:
+				Kd += encoder_rotation;
+				break;
+			case 4:
+				Ki += encoder_rotation;
+				break;
+			case 7:
+				motor1_speed += (encoder_rotation * 10);
+				motor2_speed = motor1_speed;
+				break;
+			default:
+				break;
+		}
 	}
 	encoder_rotation_old = encoder_rotation;
 	//encoder.end
@@ -226,6 +253,7 @@ int main(void)
 		}
 	}
 
+	//prevent division through zero
 	if(line_position==0)  {
 		line_estimate = 0;
 	}
@@ -236,21 +264,7 @@ int main(void)
 	wa_numerator = 0;
 	wa_denominator = 0;
 
-	//Display line values
-	lcd_home();
-	lcd_puts_P("                ");
-	lcd_home();
-	char buffer[20];
-	lcd_puts(itoa(line_estimate, buffer, 10));
-
-	uart_put_u16bit(line_estimate);
-	uart_puts_P(" \r\n");
-
-
-	lcd_gotoxy(0,1);
-	lcd_puts_P("                ");
-	lcd_gotoxy(0,1);
-
+	/*
 	for(uint8_t i=0;i<NUM_SENSORS;i++)
 	{
 		if(line_position & (1<<(7-i)))  {
@@ -259,10 +273,38 @@ int main(void)
 		else  {
 			lcd_putc('0');
 		}
+	}*/
+	
+
+	//PID
+	int16_t proportional = ((int)line_estimate) - SET_POINT;  //should be 0 when over line
+	int16_t derivative = proportional - last_proportional;
+	integral += proportional;
+	last_proportional = proportional;
+	//Difference between motor speeds. if positive -> turn right, if negative turn left
+	error_value = proportional / Kp + integral / Ki + derivative * Kd;
+
+	//drive motors
+
+	const int max = 600;
+	if(error_value > max)  {
+		error_value = max;
 	}
-	
+	if(error_value < -max)  {
+		error_value = -max;
+	}
+
+	if(error_value < 0)  {
+		motor1_speed = max + error_value;
+		motor2_speed = max;
+	}
+	else  {
+		motor1_speed = max;
+		motor2_speed = max - error_value;
+	}
+
+
 	signed char tast = taster;
-	
 	
 	switch(tast)
 	{
@@ -270,88 +312,137 @@ int main(void)
 		break;
 		
 	  case BUTTON_1:
-		//flags.start = NOT_READY;
-		  if(flags.cal_values == 0)
-		  {
-			  uart_puts_P(" Stop sampling\r\n");
-			  send_line_mode(0);
-			  uart_puts_P(" MIN prepared for transmission");
-			  send_calibration_mode(3);
-			  flags.cal_values = 1;
-		  }
-		  else
-		  {
-			  uart_puts_P(" Stop sampling\r\n");
-			  send_line_mode(0);
-			  uart_puts_P(" MAX prepared for transmission");
-			  send_calibration_mode(4);
-			  flags.cal_values = 0;
-		  }
-
-
+		  menu++;
 		break;
 		
 	  case BUTTON_1 + TASTER_LONG:
-	  	uart_puts_P("Transmitting normalized values");
-	  	send_line_mode(12);
 		break;	
 		
 	  case BUTTON_2:
-		//flags.start = READY;
-		if(flags.calibration==0)
-		{
-			uart_puts_P(" STARTED Calibration\r\n");
-			send_calibration_mode(1);
-			flags.calibration = 1;
-		}
-		else
-		{
-			uart_puts_P(" SAVE and STOP CALIBRATION \r\n");
-			send_calibration_mode(2);
-			flags.calibration = 0;
-		}
-
+		  if(menu)
+			  menu--;
 		break;
 		
 	  case BUTTON_2 + TASTER_LONG:
 		break;
 		
 	  case BUTTON_ENCODER:
-	    for(uint8_t i=0;i<NUM_SENSORS;i++)
-		{
-		  uart_puts_P("Sensor ");
-		  uart_put_uint(i);
-		  uart_puts_P(": ");
-	      uart_put_16bit(line_values[i]);
-	      uart_puts_P(" \r\n");
-		}
-		uart_puts_P("-------------------------\r\n\r\n");
-		/*uart_puts_P("Displacement: ");
-		uart_put_int(line_position);
-		uart_puts_P(" \r\n");
-		uart_puts_P("wa_numerator: ");
-		uart_put_16bit(wa_numerator);
-		uart_puts_P(" \r\n");
-		uart_puts_P("wa_denominator: ");
-		uart_put_u16bit(wa_denominator);
-		uart_puts_P(" \r\n");*/
+		  if(menu==5)  {
+			if (!flags.run_start) {
+				flags.run_start = 1;
+			}
+			else  {
+				flags.run_start = 0;
+			}
+		  }
+		  if(menu==7)  {
+			  if (flags.motor_start) {
+				  flags.motor_start = 0;
+			  }
+			  else  {
+				  flags.motor_start = 1;
+			  }
+		  }
 		break;
 		
 	  case BUTTON_ENCODER + TASTER_LONG:		
 		break;
-	}//switch.end
-	
+	}
 	if (tast != NO_TASTER)
-	  taster = NO_TASTER;
+		taster = NO_TASTER;
+
+	switch (menu) {
+		case 0:
+			lcd_clrscr();
+			lcd_gotoxy(0,LCD_LINE1);
+			lcd_puts_P("Alexander Kargl");
+			lcd_gotoxy(0,LCD_LINE2);
+			lcd_puts_P("Btn1++  Btn2--");
+			break;
+		case 1:
+			lcd_clrscr();
+			lcd_gotoxy(0,LCD_LINE1);
+			lcd_puts_P("Line Position");
+			lcd_gotoxy(0,LCD_LINE2);
+			lcd_put_uint16(line_estimate);
+			break;
+		case 2:
+			lcd_clrscr();
+			lcd_gotoxy(0,LCD_LINE1);
+			lcd_puts_P("Kp");
+			lcd_gotoxy(0,LCD_LINE2);
+			lcd_put_uint16(Kp);
+			break;
+		case 3:
+			lcd_clrscr();
+			lcd_gotoxy(0,LCD_LINE1);
+			lcd_puts_P("Kd");
+			lcd_gotoxy(0,LCD_LINE2);
+			lcd_put_uint16(Kd);
+			break;
+		case 4:
+			lcd_clrscr();
+			lcd_gotoxy(0,LCD_LINE1);
+			lcd_puts_P("Ki");
+			lcd_gotoxy(0,LCD_LINE2);
+			lcd_put_uint16(Ki);
+			break;
+		case 5:
+			lcd_clrscr();
+			lcd_gotoxy(0,LCD_LINE1);
+
+			if (!flags.run_start) {
+				lcd_puts_P("Start Program");
+			}
+			else  {
+				lcd_puts_P("Stop Program");
+			}
+			lcd_gotoxy(0,LCD_LINE2);
+			lcd_put_uint8(flags.run_start);
+			break;
+		case 6:
+			lcd_clrscr();
+			lcd_gotoxy(0,LCD_LINE1);
+			lcd_puts_P("P");
+			lcd_put_int16(proportional);
+			lcd_gotoxy(9,LCD_LINE1);
+			lcd_puts_P("D");
+			lcd_put_int16(derivative);
+			lcd_gotoxy(0,LCD_LINE2);
+			lcd_puts_P("I");
+			lcd_put_int16(integral);
+			lcd_gotoxy(9,LCD_LINE2);
+			lcd_puts_P("E");
+			lcd_put_int16(error_value);
+			break;
+		case 7:
+			lcd_clrscr();
+			lcd_gotoxy(0,LCD_LINE1);
+			lcd_puts_P("M1 ");
+			lcd_put_int16(motor1_speed);
+			lcd_gotoxy(15,LCD_LINE1);
+			lcd_put_uint8(flags.run_start);
+			lcd_gotoxy(0,LCD_LINE2);
+			lcd_puts_P("M2 ");
+			lcd_put_int16(motor2_speed);
+			break;
+		default:
+			break;
+	}
 	  
 	  
 
+	if(flags.motor_start)
+	{
+		send_motor1_speed(motor1_speed);
+		send_motor2_speed(motor2_speed);
+	}
+	else
+	{
+		send_motor1_speed(0);
+		send_motor2_speed(0);
+	}
 
-	motor1_speed = 0;
-	motor2_speed = 0;
-
-	send_motor1_speed(motor1_speed);
-	send_motor2_speed(motor2_speed);
 	 
    }//while.end
   

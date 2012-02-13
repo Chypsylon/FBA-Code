@@ -32,6 +32,14 @@ void uart_put_uint(uint8_t var);
 void uart_put_u16bit( uint16_t value );
 void uart_put_16bit( int16_t value );
 
+/*LCD*/
+//Displays a variable at cursor position
+void lcd_put_int8(int8_t var);
+void lcd_put_uint8(uint8_t var);
+void lcd_put_int16(int16_t var);
+void lcd_put_uint16(uint16_t var);
+
+
 /*ENCODER*/
 void encode_init(void);
 int8_t encode_read4(void);

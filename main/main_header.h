@@ -9,8 +9,13 @@ DATE: 2.11.2011
 /* DEFINES */
 #define NUM_SENSORS 		8
 
+//LCD
+#define LCD_LINE1 0
+#define LCD_LINE2 1
+
 //line detection
 #define LINE_TRESHOLD 150
+#define SET_POINT 450
 
 #define UART_BAUD_RATE      9600
 //i2c adresses
@@ -60,9 +65,8 @@ DATE: 2.11.2011
 struct {
    unsigned led_state:1;
    volatile unsigned us_state:1;
-   unsigned start:1;
-   unsigned calibration:1;
-   unsigned cal_values:1;
+   unsigned run_start:1;
+   unsigned motor_start:1;
 } flags;
 
 
