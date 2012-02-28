@@ -203,7 +203,7 @@ int main(void)
 	{
 		switch (menu) {
 			case 2:
-				Kp += encoder_rotation;
+				Kp += encoder_rotation*10;
 				break;
 			case 3:
 				Kd += encoder_rotation;
@@ -254,13 +254,20 @@ int main(void)
 	}
 
 	//prevent division through zero
-	if(line_position==0)  {
-		line_estimate = 0;
-	}
+	if(line_position==0)  {  //not on line
+		if(line_estimate < 450)  {
+			line_estimate = 100;
+		}
+		else  {
+			line_estimate = 800;
+		}
+
+		}
 	else  {
 		line_estimate = wa_numerator/wa_denominator;
 	}
 
+	//reset values
 	wa_numerator = 0;
 	wa_denominator = 0;
 
@@ -282,11 +289,11 @@ int main(void)
 	integral += proportional;
 	last_proportional = proportional;
 	//Difference between motor speeds. if positive -> turn right, if negative turn left
-	error_value = proportional / Kp + integral / Ki + derivative * Kd;
+	error_value = ((proportional * Kp)/100) + integral * Ki + derivative * Kd;
 
 	//drive motors
 
-	const int max = 600;
+	const int max = 900;
 	if(error_value > max)  {
 		error_value = max;
 	}
