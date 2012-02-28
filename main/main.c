@@ -119,7 +119,7 @@ int main(void)
   int16_t encoder_rotation_old = 0;
   
   uint8_t line_position = 0;
-  uint16_t line_estimate = 0;
+  int16_t line_estimate = 0;
   uint32_t wa_numerator = 0;
   uint16_t wa_denominator = 0;
 
@@ -203,7 +203,7 @@ int main(void)
 	{
 		switch (menu) {
 			case 2:
-				Kp += encoder_rotation;
+				Kp += encoder_rotation * 10;
 				break;
 			case 3:
 				Kd += encoder_rotation;
@@ -241,6 +241,7 @@ int main(void)
 
 		if(line_values[i]>LINE_TRESHOLD)
 		{
+			//flags.on_line = 1;
 			line_position |= (1<<(7-i));
 
 			//values for line estimation via weighted mean
@@ -254,13 +255,19 @@ int main(void)
 	}
 
 	//prevent division through zero
-	if(line_position==0)  {
-		line_estimate = 0;
+	if(line_position==0)  {  //not on line
+		if(line_estimate < 450)  {
+			line_estimate = 100;
+		}
+		else  {
+			line_estimate = 800;
+		}
 	}
 	else  {
 		line_estimate = wa_numerator/wa_denominator;
 	}
 
+	//reset values
 	wa_numerator = 0;
 	wa_denominator = 0;
 
@@ -274,34 +281,38 @@ int main(void)
 			lcd_putc('0');
 		}
 	}*/
-	
 
-	//PID
-	int16_t proportional = ((int)line_estimate) - SET_POINT;  //should be 0 when over line
-	int16_t derivative = proportional - last_proportional;
-	integral += proportional;
-	last_proportional = proportional;
-	//Difference between motor speeds. if positive -> turn right, if negative turn left
-	error_value = proportional / Kp + integral / Ki + derivative * Kd;
-
-	//drive motors
-
-	const int max = 600;
-	if(error_value > max)  {
-		error_value = max;
-	}
-	if(error_value < -max)  {
-		error_value = -max;
+	if ((line_estimate<500)&&(line_estimate>400)) {
+		//linie mitte -> geradeaus
+		motor1_speed = 800;
+		motor2_speed = 800;
 	}
 
-	if(error_value < 0)  {
-		motor1_speed = max + error_value;
-		motor2_speed = max;
+	else if ((line_estimate<400)&&(line_estimate>250)) {
+		//linie links -> kurve links
+		motor1_speed = 700;
+		motor2_speed = 900;
 	}
-	else  {
-		motor1_speed = max;
-		motor2_speed = max - error_value;
+	else if ((line_estimate>500)&&(line_estimate<650)) {
+		//linie rechts -> kurve rechts
+		motor1_speed = 900;
+		motor2_speed = 700;
 	}
+
+	else if ((line_estimate>=100)&&(line_estimate<250)) {
+		//Linie stark links -> Kurve links
+		motor1_speed = -600;
+		motor2_speed = 700;
+	}
+	else if ((line_estimate<=800)&&(line_estimate>650)) {
+		//Linie stark rechts -> Kurve rechts
+		motor1_speed = 700;
+		motor2_speed = -600;
+	}
+
+
+
+
 
 
 	signed char tast = taster;
@@ -335,7 +346,7 @@ int main(void)
 				flags.run_start = 0;
 			}
 		  }
-		  if(menu==7)  {
+		  if((menu==7)||(menu==2))  {
 			  if (flags.motor_start) {
 				  flags.motor_start = 0;
 			  }
@@ -367,11 +378,22 @@ int main(void)
 			lcd_put_uint16(line_estimate);
 			break;
 		case 2:
-			lcd_clrscr();
+			/*lcd_clrscr();
 			lcd_gotoxy(0,LCD_LINE1);
 			lcd_puts_P("Kp");
 			lcd_gotoxy(0,LCD_LINE2);
-			lcd_put_uint16(Kp);
+			lcd_put_uint16(Kp);*/
+			lcd_clrscr();
+			lcd_gotoxy(0,LCD_LINE1);
+			for(uint8_t i=0;i<NUM_SENSORS;i++)
+				{
+					if(line_position & (1<<(7-i)))  {
+						lcd_putc('1');
+					}
+					else  {
+						lcd_putc('0');
+					}
+				}
 			break;
 		case 3:
 			lcd_clrscr();
@@ -404,13 +426,13 @@ int main(void)
 			lcd_clrscr();
 			lcd_gotoxy(0,LCD_LINE1);
 			lcd_puts_P("P");
-			lcd_put_int16(proportional);
+			//lcd_put_int16(proportional);
 			lcd_gotoxy(9,LCD_LINE1);
 			lcd_puts_P("D");
-			lcd_put_int16(derivative);
+			//lcd_put_int16(derivative);
 			lcd_gotoxy(0,LCD_LINE2);
 			lcd_puts_P("I");
-			lcd_put_int16(integral);
+			//lcd_put_int16(integral);
 			lcd_gotoxy(9,LCD_LINE2);
 			lcd_puts_P("E");
 			lcd_put_int16(error_value);
@@ -434,8 +456,8 @@ int main(void)
 
 	if(flags.motor_start)
 	{
-		send_motor1_speed(motor1_speed);
-		send_motor2_speed(motor2_speed);
+		send_motor1_speed(motor1_speed*-1);
+		send_motor2_speed(motor2_speed*-1);
 	}
 	else
 	{
