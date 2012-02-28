@@ -92,13 +92,12 @@ void motor1_speed (int16_t speed)
 
 	if(speed>0)
 	{
-		PORT_MOTOR1_A &= ~(1<< PIN_MOTOR1_A);
-		PORT_MOTOR1_B |= (1<< PIN_MOTOR1_B);
+
 		OCR_MOTOR1 = speed;
 	}
 	else if(speed==0) //BRAKE
 	{
-		PORT_MOTOR1_A |= ~(1<< PIN_MOTOR1_A);
+		PORT_MOTOR1_A &= ~(1<< PIN_MOTOR1_A);
 		PORT_MOTOR1_B |= (1<< PIN_MOTOR1_B);
 		OCR_MOTOR1 = speed;
 	}
@@ -135,6 +134,8 @@ void motor2_speed (int16_t speed)
 	{
 		PORT_MOTOR2_A |= (1<< PIN_MOTOR2_A);
 		PORT_MOTOR2_B &= ~(1<< PIN_MOTOR2_B);
+
+
 		OCR_MOTOR2 = speed *-1;
 	}
 }

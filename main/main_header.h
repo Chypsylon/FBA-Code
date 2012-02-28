@@ -67,7 +67,6 @@ struct {
    volatile unsigned us_state:1;
    unsigned run_start:1;
    unsigned motor_start:1;
-   //unsigned on_line:1;
 } flags;
 
 
